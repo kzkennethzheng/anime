@@ -200,7 +200,7 @@ def review_log(review: dict[str, any]) -> str:
     return f"review id {review["id"]}: by user {review["user"]["name"]}"
 
 
-def main() -> None:
+def get_data() -> Iterable[dict[str, any], dict[str, any]]:
     for media_id in range(1, MEDIA_ID_LIMIT):
         media = get_media(media_id, is_good_media)
         if media is None:
@@ -210,10 +210,11 @@ def main() -> None:
         reviews = get_reviews(media_id, is_good_review)
         for review in reviews:
             logger.info(review_log(review))
+            yield (media, review)
 
 
 if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
 
     logging.basicConfig(format="%(name)s:%(levelname)s:%(message)s")
-    main()
+    get_data()
