@@ -200,7 +200,7 @@ def review_log(review: dict[str, any]) -> str:
     return f"review id {review["id"]}: by user {review["user"]["name"]}"
 
 
-def get_data() -> Iterable[dict[str, any], dict[str, any]]:
+def get_data() -> Iterable[tuple[dict[str, any], dict[str, any]]]:
     for media_id in range(1, MEDIA_ID_LIMIT):
         media = get_media(media_id, is_good_media)
         if media is None:
