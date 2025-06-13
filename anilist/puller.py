@@ -8,18 +8,17 @@ REQUESTS_PER_MIN = 30
 RETRY_LIMIT = 5
 REVIEWS_PER_PAGE = 25
 QUERY_LIMIT = 1000
-THROWOUT_CHANCE = 0.15
 
-# REVIEW_THRESHOLD = 100
-REVIEW_THRESHOLD = 5
+REVIEWS_PER_MEDIA_LIMIT = 5
 REVIEW_WORD_THRESHOLD = 100
 REVIEW_N_RATINGS_THRESHOLD = 10
 REVIEW_USER_RATING_THRESHOLD = 7
+REVIEW_THROWOUT_CHANCE = 0.5
 
+MEDIA_THROWOUT_CHANCE = 0.8
 MEDIA_POPULARITY_THRESHOLD = 100
-MEDIA_N_THRESHOLD = 20000
-# MEDIA_ID_LIMIT = 500000
-MEDIA_ID_LIMIT = 5
+MEDIA_N_THRESHOLD = 2000
+MEDIA_ID_LIMIT = 20000
 
 QUERY_URL = "https://graphql.anilist.co"
 
@@ -130,7 +129,7 @@ def exhaust_pages(
 
         yield response["data"]["Page"]
 
-        if not response["data"]["pageInfo"]["hasNextPage"]:
+        if not response["data"]["Page"]["pageInfo"]["hasNextPage"]:
             break
         page_num += 1
 
@@ -146,15 +145,11 @@ def get_reviews(
             if review_filter(review):
                 yield review
                 count += 1
-                if count >= REVIEW_THRESHOLD:
+                if count >= REVIEWS_PER_MEDIA_LIMIT:
                     threshold_reached = True
                     break
         if threshold_reached:
             break
-
-
-# TODO number of reviews per show threshold
-# TODO throwout chance for reviews
 
 
 def is_good_review(review: dict[str, any]) -> bool:
@@ -170,6 +165,9 @@ def is_good_review(review: dict[str, any]) -> bool:
     if review["rating"] < REVIEW_USER_RATING_THRESHOLD:
         return False
 
+    if random.random() < REVIEW_THROWOUT_CHANCE:
+        return False
+
     return True
 
 
@@ -178,7 +176,7 @@ def get_media(
 ) -> dict[str, any] | None:
     query = {"query": media_query, "variables": {"id": media_id}}
     media = attempt_query(QUERY_LIMIT, query)
-    if media is None or random.random() < THROWOUT_CHANCE:
+    if media is None:
         return None
 
     media = media["data"]["Media"]
@@ -188,8 +186,11 @@ def get_media(
 
 
 def is_good_media(media: dict[str, any]) -> bool:
-    # media['data']['Media']['popularity']
-    return media["popularity"] >= MEDIA_POPULARITY_THRESHOLD
+    if media["popularity"] < MEDIA_POPULARITY_THRESHOLD:
+        return False
+    if random.random() < MEDIA_THROWOUT_CHANCE:
+        return False
+    return True
 
 
 def media_log(media: dict[str, any]) -> str:
@@ -217,4 +218,5 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
 
     logging.basicConfig(format="%(name)s:%(levelname)s:%(message)s")
-    get_data()
+    for x in get_data():
+        pass
