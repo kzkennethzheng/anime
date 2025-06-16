@@ -6,66 +6,80 @@ from typing import Callable, Iterable
 
 REQUESTS_PER_MIN = 30
 RETRY_LIMIT = 5
-REVIEWS_PER_PAGE = 25
 QUERY_LIMIT = 1000
 
-REVIEWS_PER_MEDIA_LIMIT = 5
+REVIEWS_PER_PAGE = 25
+REVIEWS_PER_MEDIA_LIMIT = 3
 REVIEW_WORD_THRESHOLD = 100
 REVIEW_N_RATINGS_THRESHOLD = 10
 REVIEW_USER_RATING_THRESHOLD = 7
 REVIEW_THROWOUT_CHANCE = 0.5
 
-MEDIA_THROWOUT_CHANCE = 0.8
-MEDIA_POPULARITY_THRESHOLD = 100
+MEDIA_PER_PAGE = 20
+MEDIA_POPULARITY_THRESHOLD = 10000
 MEDIA_N_THRESHOLD = 2000
 MEDIA_ID_LIMIT = 20000
+MEDIA_THROWOUT_CHANCE = 0.5
+MEDIA_PAGE_THROWOUT_CHANCE = 0.25
 
 QUERY_URL = "https://graphql.anilist.co"
 
 
 logger = logging.getLogger(__name__)
 
-# Here we define our query as a multi-line string
-media_query = """
-query ($id: Int) { # Define which variables will be used in the query (id)
-    Media (id: $id, type: ANIME) {
-        id
-        title {
-            english
-            native
-            romaji
+#popularity_greater: 100
+# TODO: add the media filters into the GraphQL. -- Need to incorporate popularity, most anime don't have reviews
+media_query_pre = """
+query ($page: Int = 1, $perPage: Int = 5) {
+    Page(page: $page, perPage: $perPage) {
+        pageInfo {
+            currentPage
+            hasNextPage
+            perPage
         }
-        meanScore
-        genres
-        description
-        startDate {
-            year
-            month
-            day
-        }
-        endDate {
-            year
-            month
-            day 
-        }
-        isAdult
-        isLicensed
-        countryOfOrigin
-        popularity
-        rankings {
-            context
-            rank
-        }
-        studios {
-            nodes {
-                id
-                name
+        media (
+            type: ANIME
+            popularity_greater: $POPULARITY
+            sort: POPULARITY_DESC
+        ) {
+            id
+            title {
+                english
+                native
+                romaji
+            }
+            meanScore
+            genres
+            description
+            startDate {
+                year
+                month
+                day
+            }
+            endDate {
+                year
+                month
+                day 
+            }
+            isAdult
+            isLicensed
+            countryOfOrigin
+            popularity
+            rankings {
+                context
+                rank
+            }
+            studios {
+                nodes {
+                    id
+                    name
+                }
             }
         }
     }
-}
-
+} 
 """
+media_query = media_query_pre.replace("$POPULARITY", str(MEDIA_POPULARITY_THRESHOLD))
 review_query = """
 query ($mediaId: Int, $page: Int = 1, $perPage: Int = 5) {
     Page(page: $page, perPage: $perPage) {
@@ -74,7 +88,10 @@ query ($mediaId: Int, $page: Int = 1, $perPage: Int = 5) {
             hasNextPage
             perPage
         }
-        reviews(mediaId: $mediaId) {
+        reviews(
+            mediaId: $mediaId
+            sort: RATING_DESC
+        ) {
         id
         summary
         body
@@ -116,7 +133,11 @@ def attempt_query(limit: int, request: dict[str, any]) -> dict[str, any] | None:
 
 
 def exhaust_pages(
-    limit: int, query: dict[str, any], vars: dict[str, any], page_num: int
+    limit: int,
+    query: dict[str, any],
+    vars: dict[str, any],
+    page_num: int,
+    page_throwout_chance: float = 0,
 ) -> Iterable[dict[str, any]]:
     while True:
         vars["page"] = page_num
@@ -127,7 +148,8 @@ def exhaust_pages(
             logger.error("Failed to exhaust pages")
             break
 
-        yield response["data"]["Page"]
+        if random.random() >= page_throwout_chance:
+            yield response["data"]["Page"]
 
         if not response["data"]["Page"]["pageInfo"]["hasNextPage"]:
             break
@@ -140,7 +162,9 @@ def get_reviews(
     vars = {"perPage": REVIEWS_PER_PAGE, "mediaId": media_id}
     count = 0
     threshold_reached = False
-    for page in exhaust_pages(QUERY_LIMIT, review_query, vars, 1):
+    for page in exhaust_pages(
+        QUERY_LIMIT, review_query, vars, 1
+    ):
         for review in page["reviews"]:
             if review_filter(review):
                 yield review
@@ -172,23 +196,29 @@ def is_good_review(review: dict[str, any]) -> bool:
 
 
 def get_media(
-    media_id: int, media_filter: Callable[[dict[str, any]], bool]
-) -> dict[str, any] | None:
-    query = {"query": media_query, "variables": {"id": media_id}}
-    media = attempt_query(QUERY_LIMIT, query)
-    if media is None:
-        return None
+    media_filter: Callable[[dict[str, any]], bool],
+) -> Iterable[dict[str, any]]:
+    vars = {"perPage": MEDIA_PER_PAGE}
+    threshold_reached = False
+    count = 0
+    for page in exhaust_pages(
+        QUERY_LIMIT, media_query, vars, 1, MEDIA_PAGE_THROWOUT_CHANCE
+    ):
+        for media in page["media"]:
+            if media_filter(media):
+                yield media
+                count += 1
+                if count >= MEDIA_N_THRESHOLD:
+                    threshold_reached = True
+                    break
 
-    media = media["data"]["Media"]
-    if not media_filter(media):
-        return None
-    return media
+        if threshold_reached:
+            break
 
 
 def is_good_media(media: dict[str, any]) -> bool:
-    if media["popularity"] < MEDIA_POPULARITY_THRESHOLD:
-        return False
-    if random.random() < MEDIA_THROWOUT_CHANCE:
+    rand = random.random()
+    if rand < MEDIA_THROWOUT_CHANCE:
         return False
     return True
 
@@ -202,12 +232,9 @@ def review_log(review: dict[str, any]) -> str:
 
 
 def get_data() -> Iterable[tuple[dict[str, any], dict[str, any]]]:
-    for media_id in range(1, MEDIA_ID_LIMIT):
-        media = get_media(media_id, is_good_media)
-        if media is None:
-            continue
-
+    for media in get_media(is_good_media):
         logger.info(media_log(media))
+        media_id = media["id"]
         reviews = get_reviews(media_id, is_good_review)
         for review in reviews:
             logger.info(review_log(review))
