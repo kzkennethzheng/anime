@@ -8,11 +8,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 import anilist.puller
 
-# Load model and tokenizer
 MODEL_NAME = "tiiuae/falcon-rw-1b"
+MODEL_FINE_TUNED_SAVE_FOLDER = "falcon-lora-review-finetuned"
 
 logger = logging.getLogger(__name__)
-DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # Apply LoRA
@@ -66,7 +66,7 @@ class TextDataset(IterableDataset):
 
 
 def fine_tune(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer) -> None:
-    for epoch in range(3):
+    for epoch in range(1):
         for step, batch in enumerate(dataloader):
             input_ids = batch["input_ids"].to(DEVICE)
             attention_mask = batch["attention_mask"].to(DEVICE)
@@ -105,6 +105,9 @@ def main() -> None:
     tokenizer.pad_token = tokenizer.eos_token
     logger.info("Fine tuning model")
     fine_tune(model, dataloader, optimizer)
+
+    model.save_pretrained(MODEL_FINE_TUNED_SAVE_FOLDER)
+    tokenizer.save_pretrained(MODEL_FINE_TUNED_SAVE_FOLDER)
 
 
 if __name__ == "__main__":
