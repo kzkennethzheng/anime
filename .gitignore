@@ -2,4 +2,4 @@ scratchpad/
 __pycache__/
 datasets/
 falcon-lora-review-finetuned
-falcon-lora-review-original
+falcon-lora-review

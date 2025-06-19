@@ -229,6 +229,9 @@ def review_log(review: dict[str, any]) -> str:
 
 
 def get_data() -> Iterable[tuple[dict[str, any], dict[str, any]]]:
+    logger.setLevel(logging.DEBUG)
+    logging.basicConfig(format="%(name)s:%(levelname)s:%(message)s")
+
     for media in get_media(is_good_media):
         logger.info(media_log(media))
         media_id = media["id"]
@@ -239,8 +242,5 @@ def get_data() -> Iterable[tuple[dict[str, any], dict[str, any]]]:
 
 
 if __name__ == "__main__":
-    logger.setLevel(logging.DEBUG)
-
-    logging.basicConfig(format="%(name)s:%(levelname)s:%(message)s")
     for x in get_data():
         pass
