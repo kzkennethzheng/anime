@@ -3,3 +3,5 @@ __pycache__/
 datasets/
 falcon-lora-review-finetuned
 falcon-lora-review
+falcon-merged-review-finetuned
+falcon-lora-review-finetuned.zip
