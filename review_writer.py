@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 BATCH_SIZE = 4
+N_EPOCHS = 3
 LEARNING_RATE = 5e-5
 
 
@@ -71,7 +72,7 @@ class TextDataset(IterableDataset):
 
 
 def fine_tune(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer) -> None:
-    for epoch in range(1):
+    for epoch in range(N_EPOCHS):
         for step, batch in enumerate(dataloader):
             input_ids = batch["input_ids"].to(DEVICE)
             attention_mask = batch["attention_mask"].to(DEVICE)
@@ -108,6 +109,10 @@ def main() -> None:
     model.to(DEVICE)
     model.train()
     tokenizer.pad_token = tokenizer.eos_token
+
+    model.save_pretrained(MODEL_ORIGINAL_SAVE_FOLDER)
+    tokenizer.save_pretrained(MODEL_ORIGINAL_SAVE_FOLDER)
+
     logger.info("Fine tuning model")
     fine_tune(model, dataloader, optimizer)
 
