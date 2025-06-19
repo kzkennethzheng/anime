@@ -4,7 +4,6 @@ import requests
 import time
 from typing import Callable, Iterable
 
-REQUESTS_PER_MIN = 30
 RETRY_LIMIT = 5
 QUERY_LIMIT = 1000
 
@@ -27,7 +26,7 @@ QUERY_URL = "https://graphql.anilist.co"
 
 logger = logging.getLogger(__name__)
 
-#popularity_greater: 100
+# popularity_greater: 100
 # TODO: add the media filters into the GraphQL. -- Need to incorporate popularity, most anime don't have reviews
 media_query_pre = """
 query ($page: Int = 1, $perPage: Int = 5) {
@@ -162,9 +161,7 @@ def get_reviews(
     vars = {"perPage": REVIEWS_PER_PAGE, "mediaId": media_id}
     count = 0
     threshold_reached = False
-    for page in exhaust_pages(
-        QUERY_LIMIT, review_query, vars, 1
-    ):
+    for page in exhaust_pages(QUERY_LIMIT, review_query, vars, 1):
         for review in page["reviews"]:
             if review_filter(review):
                 yield review
@@ -224,11 +221,11 @@ def is_good_media(media: dict[str, any]) -> bool:
 
 
 def media_log(media: dict[str, any]) -> str:
-    return f"id {media["id"]}: {media["title"]["english"]}"
+    return f"id {media['id']}: {media['title']['english']}"
 
 
 def review_log(review: dict[str, any]) -> str:
-    return f"review id {review["id"]}: by user {review["user"]["name"]}"
+    return f"\treview id {review['id']}: by user {review['user']['name']}"
 
 
 def get_data() -> Iterable[tuple[dict[str, any], dict[str, any]]]:

@@ -10,9 +10,13 @@ import anilist.puller
 
 MODEL_NAME = "tiiuae/falcon-rw-1b"
 MODEL_FINE_TUNED_SAVE_FOLDER = "falcon-lora-review-finetuned"
+MODEL_ORIGINAL_SAVE_FOLDER = "falcon-lora-review"
 
 logger = logging.getLogger(__name__)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+BATCH_SIZE = 4
+LEARNING_RATE = 5e-5
 
 
 # Apply LoRA
@@ -32,6 +36,7 @@ def format_data(media: dict[str, any], review: dict[str, any]) -> str:
     return f"""title: {media["title"]}
         description: {media["description"]}
         genres: {media["genres"]}
+        Write a review of {media["title"]}...
         review: {review["body"]}
     """
 
@@ -96,10 +101,10 @@ def main() -> None:
     data = anilist.puller.get_data()
     logger.info("Formatting and tokenizing data")
     dataset = TextDataset(make_data(data), tokenizer)
-    dataloader = DataLoader(dataset, batch_size=1)
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE)
 
     logger.info("Configuring model trainer")
-    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     model.to(DEVICE)
     model.train()
     tokenizer.pad_token = tokenizer.eos_token
@@ -114,9 +119,3 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
     logging.basicConfig(format="%(name)s:%(levelname)s:%(message)s")
     main()
-
-"""
-from transformers import pipeline
-pipe = pipeline("text-generation", model="./output", tokenizer=tokenizer)
-pipe("Title: Breaking Bad\nDescription: ...\nPrompt: Write a review...")
-"""
