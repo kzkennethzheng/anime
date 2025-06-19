@@ -93,6 +93,9 @@ def fine_tune(model, dataloader: DataLoader, optimizer: torch.optim.Optimizer) -
 
 
 def main() -> None:
+    logger.setLevel(logging.DEBUG)
+    logging.basicConfig(format="%(name)s:%(levelname)s:%(message)s")
+
     logger.info("Retrieving model %s", MODEL_NAME)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
@@ -121,6 +124,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logger.setLevel(logging.DEBUG)
-    logging.basicConfig(format="%(name)s:%(levelname)s:%(message)s")
     main()
