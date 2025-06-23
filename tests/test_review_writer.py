@@ -1,5 +1,3 @@
-from optimum.onnxruntime import ORTModelForCausalLM
-from optimum.exporters.onnx import main_export
 from peft import PeftModel
 import torch
 from transformers import pipeline, AutoModelForCausalLM
@@ -9,15 +7,12 @@ import review_writer.writer as writer
 
 FINETUNED_MODEL_FOLDER = "./" + writer.MODEL_FINE_TUNED_SAVE_FOLDER
 FINETUNED_TOKENIZER_FOLDER = "./" + writer.MODEL_FINE_TUNED_SAVE_FOLDER
-MERGED_MODEL_FOLDER = "falcon-merged-review-finetuned"
 ORIGINAL_MODEL_FOLDER = "./" + writer.MODEL_ORIGINAL_SAVE_FOLDER
 ORIGINAL_TOKENIZER_FOLDER = "./" + writer.MODEL_ORIGINAL_SAVE_FOLDER
+MERGED_MODEL_FOLDER = "falcon-merged-review-finetuned"
 
-ONNX_MODEL_FOLDER = "falcon-merged-review-finetuned-onxx"
-
-# model = AutoModelForCausalLM.from_pretrained(FINETUNED_MODEL_FOLDER)
+model = AutoModelForCausalLM.from_pretrained(FINETUNED_MODEL_FOLDER)
 # model = torch.compile(model)
-model = ORTModelForCausalLM.from_pretrained(MERGED_MODEL_FOLDER, export=True)
 finetuned_pipe = pipeline(
     "text-generation",
     model=model,
@@ -26,13 +21,6 @@ finetuned_pipe = pipeline(
 original_pipe = pipeline(
     "text-generation", model=ORIGINAL_MODEL_FOLDER, tokenizer=ORIGINAL_TOKENIZER_FOLDER
 )
-
-main_export(
-    model_name_or_path=MERGED_MODEL_FOLDER,
-    output=ONNX_MODEL_FOLDER,
-    task="text-generation",
-)
-
 
 test_media = [
     {
@@ -113,11 +101,12 @@ def apply_pipeline(
 
 if __name__ == "__main__":
     # merge_models()
-    print(
-        apply_pipeline(
-            finetuned_pipe, test_media[0], max_new_tokens=50, prompt=prompts[-1]
+    with torch.no_grad():
+        print(
+            apply_pipeline(
+                finetuned_pipe, test_media[0], max_new_tokens=100, prompt=prompts[-1]
+            )
         )
-    )
     # print(
     #     "================================================================================"
     # )
