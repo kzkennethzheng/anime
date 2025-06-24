@@ -106,7 +106,6 @@ def main() -> None:
     model = configure_model(model)
 
     logger.info("Pulling data from anilist")
-    data = anilist.puller.get_data()
     logger.info("Formatting and tokenizing data")
     dataset = TextDataset(make_data, tokenizer)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE)

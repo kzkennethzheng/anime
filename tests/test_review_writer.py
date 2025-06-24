@@ -1,4 +1,3 @@
-from peft import PeftModel
 import torch
 from transformers import pipeline, AutoModelForCausalLM
 from transformers.pipelines.text_generation import TextGenerationPipeline
@@ -9,10 +8,8 @@ FINETUNED_MODEL_FOLDER = "./" + writer.MODEL_FINE_TUNED_SAVE_FOLDER
 FINETUNED_TOKENIZER_FOLDER = "./" + writer.MODEL_FINE_TUNED_SAVE_FOLDER
 ORIGINAL_MODEL_FOLDER = "./" + writer.MODEL_ORIGINAL_SAVE_FOLDER
 ORIGINAL_TOKENIZER_FOLDER = "./" + writer.MODEL_ORIGINAL_SAVE_FOLDER
-MERGED_MODEL_FOLDER = "falcon-merged-review-finetuned"
 
 model = AutoModelForCausalLM.from_pretrained(FINETUNED_MODEL_FOLDER)
-# model = torch.compile(model)
 finetuned_pipe = pipeline(
     "text-generation",
     model=model,
@@ -59,13 +56,6 @@ prompts = [
 ]
 
 
-def merge_models():
-    base_model = AutoModelForCausalLM.from_pretrained(writer.MODEL_NAME)
-    peft_model = PeftModel.from_pretrained(base_model, FINETUNED_MODEL_FOLDER)
-    merged_model = peft_model.merge_and_unload()
-    merged_model.save_pretrained(MERGED_MODEL_FOLDER)
-
-
 def format_media(media: dict[str, any], prompt: str) -> str:
     if prompt[-1] == " ":
         prompt = prompt + media["title"]
@@ -90,17 +80,7 @@ def apply_pipeline(
     return output[0]["generated_text"]
 
 
-# def test_pipelines():
-#     print(apply_pipeline(finetuned_pipe, test_media[0]))
-#     print(
-#         "================================================================================"
-#     )
-#     print(apply_pipeline(original_pipe, test_media[0]))
-#     assert 0 == 0
-
-
 if __name__ == "__main__":
-    # merge_models()
     with torch.no_grad():
         print(
             apply_pipeline(
