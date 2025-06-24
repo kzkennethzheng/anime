@@ -25,8 +25,6 @@ QUERY_URL = "https://graphql.anilist.co"
 
 logger = logging.getLogger(__name__)
 
-# popularity_greater: 100
-# TODO: add the media filters into the GraphQL. -- Need to incorporate popularity, most anime don't have reviews
 media_query_pre = """
 query ($page: Int = 1, $perPage: Int = 5) {
     Page(page: $page, perPage: $perPage) {
