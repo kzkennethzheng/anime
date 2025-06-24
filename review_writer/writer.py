@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable
+from typing import Callable, Iterable
 
 from peft import get_peft_model, LoraConfig, TaskType, PeftModel, PeftMixedModel
 import torch
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 BATCH_SIZE = 4
-N_EPOCHS = 3
+N_EPOCHS = 2
 LEARNING_RATE = 5e-5
 
 
@@ -33,7 +33,7 @@ def configure_model(model) -> PeftModel | PeftMixedModel:
     return get_peft_model(model, lora_config)
 
 
-def format_data(media: dict[str, any], review: dict[str, any]) -> str:
+def format_media_review(media: dict[str, any], review: dict[str, any]) -> str:
     return f"""title: {media["title"]}
         description: {media["description"]}
         genres: {media["genres"]}
@@ -42,19 +42,23 @@ def format_data(media: dict[str, any], review: dict[str, any]) -> str:
     """
 
 
-def make_data(data: Iterable[tuple[dict[str, any], dict[str, any]]]) -> Iterable[str]:
+def format_data(data: Iterable[tuple[dict[str, any], dict[str, any]]]) -> Iterable[str]:
     for media, review in data:
-        yield format_data(media, review)
+        yield format_media_review(media, review)
 
+
+def make_data() -> Iterable[str]:
+    data = anilist.puller.get_data()
+    return format_data(data)
 
 class TextDataset(IterableDataset):
-    def __init__(self, data: Iterable[str], tokenizer, max_length=512):
-        self.data = data
+    def __init__(self, data_initializer: Callable[..., Iterable[str]], tokenizer, max_length=512):
+        self.data_initializer = data_initializer
         self.tokenizer = tokenizer
         self.max_length = max_length
 
     def __iter__(self):
-        for text in self.data:
+        for text in self.data_initializer():
             tokenized = self.tokenizer(
                 text,
                 truncation=True,
@@ -104,7 +108,7 @@ def main() -> None:
     logger.info("Pulling data from anilist")
     data = anilist.puller.get_data()
     logger.info("Formatting and tokenizing data")
-    dataset = TextDataset(make_data(data), tokenizer)
+    dataset = TextDataset(make_data, tokenizer)
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE)
 
     logger.info("Configuring model trainer")
