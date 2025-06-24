@@ -123,7 +123,9 @@ def main() -> None:
     logger.info("Fine tuning model")
     fine_tune(model, dataloader, optimizer)
 
-    model.save_pretrained(MODEL_FINE_TUNED_SAVE_FOLDER)
+    logger.info("Saving fine-tuned model")
+    merged_model = model.merge_and_unload()
+    merged_model.save_pretrained(MODEL_FINE_TUNED_SAVE_FOLDER)
     tokenizer.save_pretrained(MODEL_FINE_TUNED_SAVE_FOLDER)
 
 
