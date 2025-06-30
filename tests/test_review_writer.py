@@ -4,8 +4,8 @@ from transformers.pipelines.text_generation import TextGenerationPipeline
 
 import review_writer.writer as writer
 
-FINETUNED_MODEL_FOLDER = "./" + writer.MODEL_FINE_TUNED_SAVE_FOLDER
-FINETUNED_TOKENIZER_FOLDER = "./" + writer.MODEL_FINE_TUNED_SAVE_FOLDER
+FINETUNED_MODEL_FOLDER = "./falcon-lora-review-finetuned"
+FINETUNED_TOKENIZER_FOLDER = "./falcon-lora-review-finetuned"
 ORIGINAL_MODEL_FOLDER = "./" + writer.MODEL_ORIGINAL_SAVE_FOLDER
 ORIGINAL_TOKENIZER_FOLDER = "./" + writer.MODEL_ORIGINAL_SAVE_FOLDER
 
@@ -15,9 +15,9 @@ finetuned_pipe = pipeline(
     model=model,
     tokenizer=FINETUNED_TOKENIZER_FOLDER,
 )
-original_pipe = pipeline(
-    "text-generation", model=ORIGINAL_MODEL_FOLDER, tokenizer=ORIGINAL_TOKENIZER_FOLDER
-)
+# original_pipe = pipeline(
+#     "text-generation", model=ORIGINAL_MODEL_FOLDER, tokenizer=ORIGINAL_TOKENIZER_FOLDER
+# )
 
 test_media = [
     {
@@ -71,23 +71,32 @@ def apply_pipeline(
     media: dict[str, any],
     max_new_tokens=50,
     prompt=prompts[0],
-):
+) -> str:
+    empty_review = {"body": ""}
     output = generator(
-        format_media(media, prompt),
+        writer.format_media_review(media, empty_review, prompt),
         max_new_tokens=max_new_tokens,
         return_full_text=False,
     )
     return output[0]["generated_text"]
 
 
-if __name__ == "__main__":
+def print_generated_review(media_index: int, prompt_index: int) -> None:
     with torch.no_grad():
         print(
             apply_pipeline(
-                finetuned_pipe, test_media[0], max_new_tokens=100, prompt=prompts[-1]
+                finetuned_pipe, test_media[media_index], max_new_tokens=2048, prompt=prompts[prompt_index]
             )
         )
+# TODO more modular testing -- should be easy to call functions
+# TODO maybe swap the prompt order. Info should be before prompt
+def main():
+    print_generated_review(0, 0)
     # print(
     #     "================================================================================"
     # )
     # print(apply_pipeline(original_pipe, test_media[0]))
+
+
+if __name__ == "__main__":
+    main()

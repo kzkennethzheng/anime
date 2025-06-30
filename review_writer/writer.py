@@ -9,7 +9,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import anilist.puller
 
 MODEL_NAME = "tiiuae/falcon-rw-1b"
-MODEL_FINE_TUNED_SAVE_FOLDER = "falcon-lora-review-finetuned"
+# MODEL_FINE_TUNED_SAVE_FOLDER = "falcon-lora-review-finetuned"
+MODEL_FINE_TUNED_SAVE_FOLDER = "/content/drive/MyDrive/Colab Notebooks/Models/falcon-lora-review-finetuned"
 MODEL_ORIGINAL_SAVE_FOLDER = "falcon-lora-review"
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 4
 N_EPOCHS = 2
 LEARNING_RATE = 5e-5
+
+DEFAULT_PROMPT = "Write a review of"
 
 
 # Apply LoRA
@@ -33,11 +36,12 @@ def configure_model(model) -> PeftModel | PeftMixedModel:
     return get_peft_model(model, lora_config)
 
 
-def format_media_review(media: dict[str, any], review: dict[str, any]) -> str:
-    return f"""title: {media["title"]}
+def format_media_review(media: dict[str, any], review: dict[str, any], prompt: str = DEFAULT_PROMPT) -> str:
+    return f"""Show information:
+        title: {media["title"]}
         description: {media["description"]}
         genres: {media["genres"]}
-        Write a review of {media["title"]}...
+        {prompt}
         review: {review["body"]}
     """
 
@@ -102,6 +106,7 @@ def main() -> None:
 
     logger.info("Retrieving model %s", MODEL_NAME)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
     model = configure_model(model)
 
@@ -114,7 +119,6 @@ def main() -> None:
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
     model.to(DEVICE)
     model.train()
-    tokenizer.pad_token = tokenizer.eos_token
 
     model.save_pretrained(MODEL_ORIGINAL_SAVE_FOLDER)
     tokenizer.save_pretrained(MODEL_ORIGINAL_SAVE_FOLDER)
